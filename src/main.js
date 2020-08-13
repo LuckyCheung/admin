@@ -6,7 +6,6 @@ import api from "./utils/api";
 import ElementUI from "element-ui";
 import "element-ui/lib/theme-chalk/index.css";
 
-
 Vue.config.productionTip = false;
 Vue.prototype.$_lc_api = api;
 Vue.use(ElementUI);

@@ -2,13 +2,15 @@ import Vue from "vue";
 import VueRouter from "vue-router";
 import store from "@/store";
 
-import Login from "@/views/Login.vue";
-import Home from "@/views/Home.vue";
-import Users from "@/views/Users.vue";
-import Roles from "@/views/Roles.vue";
-import Error404 from "@/views/Error404.vue";
-
 Vue.use(VueRouter);
+
+const dynamicConfig = {
+  home: () => import("@/views/Home.vue"),
+  login: () => import("@/views/Login.vue"),
+  users: () => import(/* webpackChunkName: "group-nav" */ "@/views/Users.vue"),
+  roles: () => import(/* webpackChunkName: "group-nav" */ "@/views/Roles.vue"),
+  404: () => import("@/views/Error404.vue")
+};
 
 const routes = [
   {
@@ -18,7 +20,7 @@ const routes = [
   {
     name: "首页",
     path: "/home",
-    component: Home,
+    component: dynamicConfig["home"],
     meta: {
       requiresAuth: true
     }
@@ -26,36 +28,36 @@ const routes = [
   {
     name: "登录",
     path: "/login",
-    component: Login,
+    component: dynamicConfig["login"],
     meta: {}
-  },
-  {
-    name: "404",
-    path: "*",
-    component: Error404,
-    hidden: false
   }
 ];
 
-export const dynamicRoutes = {
-  "/users": {
+const dynamicRoutes = {
+  users: {
     name: "用户列表",
     path: "/users",
-    component: Users,
+    component: "users",
     meta: {
       role: [],
       requiresAuth: true,
       keepAlive: true
     }
   },
-  "/roles": {
+  roles: {
     name: "角色列表",
     path: "/roles",
-    component: Roles,
+    component: "roles",
     meta: {
       requiresAuth: true,
       keepAlive: true
     }
+  },
+  "404": {
+    name: "404",
+    path: "*",
+    component: dynamicConfig["404"],
+    hidden: false
   }
 };
 
@@ -65,22 +67,18 @@ const router = new VueRouter({
 });
 
 router.beforeEach((to, from, next) => {
-  if (to.path === "/login" || to.path === "/404") {
-    next();
-  } else if (to.meta && to.meta.requiresAuth) {
-    if (store.getters["user/globalTokenGetters"]) {
-      if (to.path === "/home") {
-        store.dispatch("router/updateRouterAsync").then(() => {
-          let { routes } = router.options;
-          let routeData = routes.find(r => r.path === to.path);
-          routeData.children = store.state.router.routerList;
-          router.addRoutes([routeData]);
-          next();
-        });
-      } else {
-        next();
-      }
+  if (["/login"].indexOf(to.path) !== -1) {
+    return next();
+  }
+  if (store.getters["user/isFakeLogin"]) {
+    mountRouter(store.getters["user/getRouter"]);
+    return next({ ...to, replace: true });
+  }
+  if (to.meta && to.meta.requiresAuth) {
+    if (store.state.user.infoReady && store.state.user.routerReady) {
+      next();
     } else {
+      loginOut();
       next({
         path: "/login",
         query: { jump: to.fullPath }
@@ -91,4 +89,38 @@ router.beforeEach((to, from, next) => {
   }
 });
 
+function mountRouter(userRouter) {
+  if (!(userRouter && userRouter.length)) return;
+  userRouter = JSON.parse(JSON.stringify(userRouter));
+  router.options.routes.forEach(item => {
+    if (item.path === "/home") {
+      userRouter.forEach(i => {
+        i.component = dynamicConfig[i.component];
+      });
+      item.children = userRouter;
+      router.addRoutes([item, dynamicRoutes["404"]]);
+    }
+  });
+}
+
+function matchRouter(initialRouter) {
+  let r = [];
+  initialRouter.forEach(item => {
+    if (dynamicRoutes[item.path]) {
+      r.push(dynamicRoutes[item.path]);
+    }
+  });
+  return r;
+}
+
+function loginOut() {
+  store.commit("user/resetUserInfo");
+}
+
+// router.$addRoutes = params => {
+//   router.matcher = new VueRouter({ mode: "history" }).matcher;
+//   router.addRoutes(params);
+// };
+
 export default router;
+export { matchRouter };

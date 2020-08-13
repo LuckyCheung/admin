@@ -10,6 +10,7 @@ module.exports = {
     port: 8080,
     https: false,
     hotOnly: false, // 热更新
-    proxy: null // 设置代理
+    proxy: null, // 设置代理
+    open: true
   }
 };

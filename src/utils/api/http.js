@@ -18,14 +18,12 @@ http.defaults.headers.post["Content-Type"] =
 
 http.interceptors.request.use(
   config => {
-    const token =
-      store.state.user.userInfo.token || localStorage.getItem("token");
+    const token = store.getters["user/getToken"];
     token && (config.headers.Authorization = token);
     return config;
   },
-  err => {
-    console.log("req err:", err);
-    errHandle(333);
+  () => {
+    handleErrorRequest(333, "req");
   }
 );
 
@@ -37,34 +35,43 @@ http.interceptors.response.use(
         response.data.meta &&
         response.data.meta.status === 401
       ) {
-        errHandle(response.data.meta.status);
+        handleErrorRequest(response.data.meta.status, "res");
       } else {
         return response;
       }
     } else {
-      errHandle(response.status);
+      handleErrorRequest(response.status, "res");
     }
   },
-  err => {
-    console.log("res err:", err);
-    return errHandle(333);
+  () => {
+    return handleErrorRequest(333, "res");
   }
 );
 
-function errHandle(errCode) {
+function handleErrorRequest(errCode, errType) {
+  console.log("error code:", errCode);
+  console.log("error type:", errType);
   switch (errCode) {
     // 400: 参数错误
     case 400:
-      console.log("err", "请求参数错误");
+      console.log("error info:", "请求参数错误");
       break;
     // 401: 无效token
     case 401:
-      console.log("err", "无效token");
+      Notification({
+        title: "提示",
+        message: "登录失效，请重新登录!"
+      });
+      console.log("error info:", "无效token");
       loginOut();
       break;
     // 403 token过期
     case 403:
-      console.log("err", "token过期");
+      Notification({
+        title: "提示",
+        message: "登录过期，请重新登录!"
+      });
+      console.log("error info:", "token过期");
       loginOut();
       break;
     // 404请求不存在
@@ -91,7 +98,7 @@ function errHandle(errCode) {
 }
 
 function loginOut() {
-  store.commit("updateUserInfo", {});
+  store.commit("user/resetUserInfo");
   router.replace({
     path: "/login",
     query: {

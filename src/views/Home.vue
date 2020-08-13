@@ -77,7 +77,7 @@ export default {
         this.pageList = route.matched.map(item => {
           return {
             path: item.path || "",
-            name: item.components.default.name
+            name: item.name || ""
           };
         });
       },
@@ -102,7 +102,7 @@ export default {
           type: "warning"
         })
         .then(() => {
-          that.$store.commit("user/updateUserInfo", {});
+          that.$store.commit("user/resetUserInfo");
           that.$router.replace({ path: "/login" });
         });
     }

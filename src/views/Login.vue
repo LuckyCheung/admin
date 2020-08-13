@@ -33,6 +33,7 @@
 </template>
 
 <script>
+import { mapMutations } from "vuex";
 export default {
   name: "Login",
   data() {
@@ -59,6 +60,7 @@ export default {
     }
   },
   methods: {
+    ...mapMutations("user", ["setUserInfo"]),
     submitForm(formName) {
       let that = this;
       that.$refs[formName].validate(valid => {
@@ -88,13 +90,27 @@ export default {
             res.data.meta &&
             res.data.meta.status === 200
           ) {
-            that.$message({
-              type: "success",
-              message: "登录成功"
+            that.setUserInfo({
+              uInfo: res.data.data
             });
-            that.$store.commit("user/updateUserInfo", res.data.data);
-            that.$router.replace({
-              path: that.jump || "/home"
+            that.$_lc_api.getMenu().then(res1 => {
+              if (res1 && res1.data) {
+                that.setUserInfo({
+                  uRouter: res1.data.data
+                });
+                that.$router.replace({
+                  path: that.jump || "/home"
+                });
+                that.$message({
+                  type: "success",
+                  message: "登录成功"
+                });
+              } else {
+                that.$message({
+                  type: "error",
+                  message: "登录失败，请稍后再试！"
+                });
+              }
             });
           } else {
             that.$message({
@@ -110,14 +126,6 @@ export default {
             message: "登录失败，请稍后再试！"
           });
         });
-    },
-    async getMenu() {
-      let res = await this.$_lc_api.getMenu();
-      if (res && res.data && res.data.data) {
-        return res.data.data;
-      } else {
-        return [];
-      }
     }
   }
 };
